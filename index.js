@@ -20,6 +20,8 @@ io.on('connection',(socket) => { //实现对socket连接，失去连接的监听
 
     socket.on('disconnect',() => {
         console.log('user disconnected :' +socket.id);
+        //某个用户断开连接的时候，我们需要告诉所有还在线的用户这个信息
+        socket.broadcast.emit('userdisconnected',socket.id);    
     });
 
     socket.on('chat message',(msg) => {
@@ -27,6 +29,38 @@ io.on('connection',(socket) => { //实现对socket连接，失去连接的监听
         socket.broadcast.emit('chat message', msg); //对外广播
         //io.emit 是发送给所有建立连接的用户（同时会发送给自己）
     });
+
+    //当有新用户加入，打招呼时，需要转发消息到所有在线用户。
+    socket.on('new user greet', (data) => {
+        console.log(data);
+        console.log(socket.id + ' greet ' + data.msg);
+        socket.broadcast.emit('need connect', {sender: socket.id, msg : data.msg});
+    });
+    //在线用户回应新用户消息的转发
+    socket.on('ok we connect', (data) => {
+        io.to(data.receiver).emit('ok we connect', {sender : data.sender});
+    });
+
+    //sdp 消息的转发
+    socket.on( 'sdp', ( data ) => {
+        console.log('sdp');
+        console.log(data.description);
+        //console.log('sdp:  ' + data.sender + '   to:' + data.to);
+        socket.to( data.to ).emit( 'sdp', {
+            description: data.description,
+            sender: data.sender
+        } );
+    } );
+
+    //candidates 消息的转发
+    socket.on( 'ice candidates', ( data ) => {
+        console.log('ice candidates:  ');
+        console.log(data);
+        socket.to( data.to ).emit( 'ice candidates', {
+            candidate: data.candidate,
+            sender: data.sender
+        } );
+    } );
 });
 
 http.listen(3000,() => {
